@@ -80,8 +80,8 @@ function initApp() {
   // Setup Board Wheel Scroll
   setupBoardWheelScroll();
 
-  // Initialize Supabase Cloud Sync (Real-time team synchronization)
-  initSupabaseClient();
+  // Initialize Firebase Cloud Sync (Real-time team synchronization)
+  initFirebase();
 
   // Check URL hash for initial tab
   if (window.location.hash === '#dashboard') {
@@ -430,15 +430,19 @@ function moveCardToList(cardId, targetListId) {
     persistData();
     renderAll();
 
-    // Sincronizar mudança de etapa na nuvem (Supabase)
-    if (supabaseClient) {
-      supabaseClient.from('melhorias').update({
-        id_list: targetListId,
-        week: card.week,
-        date: card.date
-      }).eq('id', cardId).then(({ error }) => {
-        if (error) console.warn('Supabase move error:', error);
-      });
+    // Sincronizar mudança de etapa no Firebase Firestore
+    if (firestoreDb) {
+      firestoreDb.collection('melhorias').doc(cardId).set({
+        id: card.id,
+        year: currentYear,
+        idList: targetListId,
+        name: card.name,
+        desc: card.desc || '',
+        tag: card.tag || 'Geral',
+        author: card.author || 'Pedro Levi',
+        week: card.week || currentWeek,
+        date: card.date || new Date().toISOString()
+      }, { merge: true }).catch(e => console.warn('Firestore move error:', e));
     }
   }
 }
@@ -855,23 +859,21 @@ function saveCard(event) {
   closeCardModal();
   renderAll();
 
-  // Sincronizar criação / edição na nuvem (Supabase)
-  if (supabaseClient) {
+  // Sincronizar criação / edição no Firebase Firestore
+  if (firestoreDb) {
     const cardToSync = id ? cards.find(c => c.id === id) : cards[cards.length - 1];
     if (cardToSync) {
-      supabaseClient.from('melhorias').upsert({
+      firestoreDb.collection('melhorias').doc(cardToSync.id).set({
         id: cardToSync.id,
         year: currentYear,
-        id_list: cardToSync.idList,
+        idList: cardToSync.idList,
         name: cardToSync.name,
-        description: cardToSync.desc || '',
+        desc: cardToSync.desc || '',
         tag: cardToSync.tag || 'Geral',
         author: cardToSync.author || 'Pedro Levi',
         week: cardToSync.week || currentWeek,
         date: cardToSync.date || new Date().toISOString()
-      }).then(({ error }) => {
-        if (error) console.warn('Supabase upsert error:', error);
-      });
+      }, { merge: true }).catch(e => console.warn('Firestore save error:', e));
     }
   }
 }
@@ -886,11 +888,9 @@ function deleteCurrentCard() {
     closeCardModal();
     renderAll();
 
-    // Sincronizar exclusão na nuvem (Supabase)
-    if (supabaseClient) {
-      supabaseClient.from('melhorias').delete().eq('id', id).then(({ error }) => {
-        if (error) console.warn('Supabase delete error:', error);
-      });
+    // Sincronizar exclusão no Firebase Firestore
+    if (firestoreDb) {
+      firestoreDb.collection('melhorias').doc(id).delete().catch(e => console.warn('Firestore delete error:', e));
     }
   }
 }
@@ -1119,234 +1119,154 @@ function escapeHtml(str) {
 }
 
 // ============================================================
-// SUPABASE (POSTGRESQL NA NUVEM) - SINCRONIZAÇÃO EM TEMPO REAL
+// FIREBASE FIRESTORE (GOOGLE CLOUD) - SINCRONIZAÇÃO EM TEMPO REAL
 // ============================================================
-let supabaseClient = null;
+let firestoreDb = null;
 
-function initSupabaseClient() {
-  const url = (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) ? SUPABASE_URL.trim() : (localStorage.getItem('lift_supabase_url') || '').trim();
-  const key = (typeof SUPABASE_ANON_KEY !== 'undefined' && SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY.trim() : (localStorage.getItem('lift_supabase_key') || '').trim();
-
+function initFirebase() {
   const dot = document.getElementById('cloudStatusDot');
   const txt = document.getElementById('cloudStatusText');
 
-  if (url && key && window.supabase) {
+  if (typeof firebaseConfig !== 'undefined' && firebaseConfig.apiKey && window.firebase) {
     try {
-      supabaseClient = window.supabase.createClient(url, key);
-      if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
-      if (txt) txt.textContent = 'Nuvem: Ativa';
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      firestoreDb = firebase.firestore();
 
-      syncFromSupabase();
-      subscribeSupabaseRealtime();
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
+      if (txt) txt.textContent = 'Nuvem Conectada';
+
+      syncFromFirestore();
+      subscribeFirestoreRealtime();
     } catch (err) {
-      console.warn('Erro ao inicializar Supabase:', err);
+      console.warn('Erro ao inicializar Firebase:', err);
       if (dot) dot.className = 'w-2 h-2 rounded-full bg-rose-500 shrink-0';
       if (txt) txt.textContent = 'Nuvem: Erro';
     }
   } else {
     if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
-    if (txt) txt.textContent = 'Conectar Nuvem';
+    if (txt) txt.textContent = 'Nuvem Desconectada';
   }
 }
 
-async function syncFromSupabase() {
-  if (!supabaseClient) return;
+async function syncFromFirestore() {
+  if (!firestoreDb) return;
 
   try {
-    const { data, error } = await supabaseClient.from('melhorias').select('*');
-    if (error) {
-      console.warn('Supabase fetch error:', error);
-      return;
-    }
+    const snapshot = await firestoreDb.collection('melhorias').get();
 
-    if (!data || data.length === 0) {
-      // Auto-seed banco de dados na nuvem com melhorias existentes
+    if (snapshot.empty) {
+      // Auto-seed: grava as melhorias atuais de 2026 no Firestore
       const cards2026 = cardsByYear[2026] || [];
       if (cards2026.length > 0) {
-        const seedRows = cards2026.map(c => ({
-          id: c.id,
-          year: 2026,
-          id_list: c.idList,
-          name: c.name,
-          description: c.desc || '',
-          tag: c.tag || 'Geral',
-          author: c.author || 'Pedro Levi',
-          week: c.week || 44,
-          date: c.date || new Date().toISOString()
-        }));
-        await supabaseClient.from('melhorias').upsert(seedRows);
+        const batch = firestoreDb.batch();
+        cards2026.forEach(c => {
+          const docRef = firestoreDb.collection('melhorias').doc(c.id);
+          batch.set(docRef, {
+            id: c.id,
+            year: 2026,
+            idList: c.idList,
+            name: c.name,
+            desc: c.desc || '',
+            tag: c.tag || 'Geral',
+            author: c.author || 'Pedro Levi',
+            week: c.week || 44,
+            date: c.date || new Date().toISOString()
+          });
+        });
+        await batch.commit();
+        console.log(`Auto-seed concluído com ${cards2026.length} melhorias no Firestore.`);
       }
     } else {
-      cardsByYear[2026] = data.filter(r => r.year === 2026).map(r => ({
-        id: r.id,
-        idShort: 1,
-        idList: r.id_list,
-        name: r.name,
-        desc: r.description || '',
-        tag: r.tag || 'Geral',
-        author: r.author || 'Pedro Levi',
-        week: r.week || 44,
-        date: r.date || new Date().toISOString()
-      }));
+      const remoteCards2026 = [];
+      const remoteCards2027 = [];
 
-      cardsByYear[2027] = data.filter(r => r.year === 2027).map(r => ({
-        id: r.id,
-        idShort: 1,
-        idList: r.id_list,
-        name: r.name,
-        desc: r.description || '',
-        tag: r.tag || 'Geral',
-        author: r.author || 'Pedro Levi',
-        week: r.week || 1,
-        date: r.date || new Date().toISOString()
-      }));
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const card = {
+          id: doc.id,
+          idShort: 1,
+          idList: data.idList,
+          name: data.name,
+          desc: data.desc || '',
+          tag: data.tag || 'Geral',
+          author: data.author || 'Pedro Levi',
+          week: data.week || 44,
+          date: data.date || new Date().toISOString()
+        };
 
+        if (data.year === 2027) {
+          remoteCards2027.push(card);
+        } else {
+          remoteCards2026.push(card);
+        }
+      });
+
+      cardsByYear[2026] = remoteCards2026;
+      cardsByYear[2027] = remoteCards2027;
       persistData();
       renderAll();
     }
   } catch (err) {
-    console.warn('Erro ao sincronizar do Supabase:', err);
+    console.warn('Erro ao sincronizar dados do Firestore:', err);
   }
 }
 
-function subscribeSupabaseRealtime() {
-  if (!supabaseClient) return;
+function subscribeFirestoreRealtime() {
+  if (!firestoreDb) return;
 
   try {
-    supabaseClient
-      .channel('melhorias_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'melhorias' }, (payload) => {
-        const eventType = payload.eventType;
-        const row = payload.new;
-        const old = payload.old;
+    firestoreDb.collection('melhorias').onSnapshot((snapshot) => {
+      let hasChanges = false;
 
-        if (eventType === 'INSERT' && row) {
-          const yr = row.year || 2026;
-          const card = {
-            id: row.id,
-            idShort: 1,
-            idList: row.id_list,
-            name: row.name,
-            desc: row.description || '',
-            tag: row.tag || 'Geral',
-            author: row.author || 'Pedro Levi',
-            week: row.week || 44,
-            date: row.date || new Date().toISOString()
-          };
-          if (!cardsByYear[yr].some(c => c.id === card.id)) {
-            cardsByYear[yr].push(card);
-          }
-        } else if (eventType === 'UPDATE' && row) {
-          const yr = row.year || 2026;
-          const card = cardsByYear[yr].find(c => c.id === row.id);
-          if (card) {
-            card.idList = row.id_list;
-            card.name = row.name;
-            card.desc = row.description || '';
-            card.tag = row.tag || 'Geral';
-            card.author = row.author || 'Pedro Levi';
-            card.week = row.week;
-            card.date = row.date;
-          } else {
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        const yr = data.year || 2026;
+        const cardId = change.doc.id;
+
+        if (change.type === 'added') {
+          if (!cardsByYear[yr].some(c => c.id === cardId)) {
             cardsByYear[yr].push({
-              id: row.id,
+              id: cardId,
               idShort: 1,
-              idList: row.id_list,
-              name: row.name,
-              desc: row.description || '',
-              tag: row.tag || 'Geral',
-              author: row.author || 'Pedro Levi',
-              week: row.week || 44,
-              date: row.date || new Date().toISOString()
+              idList: data.idList,
+              name: data.name,
+              desc: data.desc || '',
+              tag: data.tag || 'Geral',
+              author: data.author || 'Pedro Levi',
+              week: data.week || 44,
+              date: data.date || new Date().toISOString()
             });
+            hasChanges = true;
           }
-        } else if (eventType === 'DELETE' && old) {
-          cardsByYear[2026] = cardsByYear[2026].filter(c => c.id !== old.id);
-          cardsByYear[2027] = cardsByYear[2027].filter(c => c.id !== old.id);
+        } else if (change.type === 'modified') {
+          const card = cardsByYear[yr].find(c => c.id === cardId);
+          if (card) {
+            card.idList = data.idList;
+            card.name = data.name;
+            card.desc = data.desc || '';
+            card.tag = data.tag || 'Geral';
+            card.author = data.author || 'Pedro Levi';
+            card.week = data.week;
+            card.date = data.date;
+            hasChanges = true;
+          }
+        } else if (change.type === 'removed') {
+          cardsByYear[2026] = cardsByYear[2026].filter(c => c.id !== cardId);
+          cardsByYear[2027] = cardsByYear[2027].filter(c => c.id !== cardId);
+          hasChanges = true;
         }
+      });
 
+      if (hasChanges) {
         persistData();
         renderAll();
-      })
-      .subscribe();
+      }
+    });
   } catch (err) {
-    console.warn('Erro no Realtime do Supabase:', err);
+    console.warn('Erro no listener em tempo real do Firestore:', err);
   }
-}
-
-function openSupabaseModal() {
-  const modal = document.getElementById('supabaseModal');
-  const url = (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) ? SUPABASE_URL.trim() : (localStorage.getItem('lift_supabase_url') || '').trim();
-  const key = (typeof SUPABASE_ANON_KEY !== 'undefined' && SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY.trim() : (localStorage.getItem('lift_supabase_key') || '').trim();
-
-  document.getElementById('supabaseUrlInput').value = url;
-  document.getElementById('supabaseKeyInput').value = key;
-
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-}
-
-function closeSupabaseModal() {
-  const modal = document.getElementById('supabaseModal');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
-}
-
-function copySupabaseSQL() {
-  const sql = `-- TABELA DE MELHORIAS (LIFT CONTABILIDADE)
-CREATE TABLE IF NOT EXISTS melhorias (
-  id TEXT PRIMARY KEY,
-  year INT NOT NULL DEFAULT 2026,
-  id_list TEXT NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT DEFAULT '',
-  tag TEXT DEFAULT 'Geral',
-  author TEXT DEFAULT 'Pedro Levi',
-  week INT DEFAULT 44,
-  date TIMESTAMPTZ DEFAULT NOW(),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Habilitar Row Level Security (RLS) com acesso público
-ALTER TABLE melhorias ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Permitir leitura pública" ON melhorias FOR SELECT USING (true);
-CREATE POLICY "Permitir inserção pública" ON melhorias FOR INSERT WITH CHECK (true);
-CREATE POLICY "Permitir atualização pública" ON melhorias FOR UPDATE USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir exclusão pública" ON melhorias FOR DELETE USING (true);
-
--- Habilitar sincronização em tempo real (Realtime)
-ALTER PUBLICATION supabase_realtime ADD TABLE melhorias;`;
-
-  navigator.clipboard.writeText(sql).then(() => {
-    const btn = document.getElementById('btnCopySql');
-    if (btn) {
-      btn.innerHTML = '✓ SQL Copiado!';
-      setTimeout(() => {
-        btn.innerHTML = '<i data-lucide="copy" class="w-3 h-3"></i><span>Copiar Script SQL</span>';
-        if (window.lucide) lucide.createIcons();
-      }, 2500);
-    }
-  }).catch(() => {
-    alert('SQL para copiar:\n\n' + sql);
-  });
-}
-
-function saveSupabaseConfig() {
-  const url = document.getElementById('supabaseUrlInput').value.trim();
-  const key = document.getElementById('supabaseKeyInput').value.trim();
-
-  if (!url || !key) {
-    alert('Por favor, preencha a URL e a Anon Key do Supabase.');
-    return;
-  }
-
-  localStorage.setItem('lift_supabase_url', url);
-  localStorage.setItem('lift_supabase_key', key);
-
-  closeSupabaseModal();
-  initSupabaseClient();
-  alert('Configuração do Supabase salva com sucesso! Sincronizando com a nuvem...');
 }
 
 // Start
