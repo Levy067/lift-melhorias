@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal de Melhorias | Lift Contabilidade</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- html2canvas for 1-click Dashboard Presentation Export -->
+  <script src="html2canvas.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            lift: {
+              navy: '#033A65',
+              'navy-dark': '#022847',
+              'navy-light': '#0a528e',
+              'navy-soft': '#eff6ff',
+              orange: '#E17908',
+              'orange-hover': '#cf6d05',
+              'orange-soft': '#fff7ed',
+              gold: '#F59E0B',
+              bg: '#F8FAFC',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #F8FAFC;
+      color: #0f172a;
+    }
+    
+    /* VISIBLE HORIZONTAL SCROLLBAR FOR KANBAN BOARD */
+    #kanbanBoard {
+      overflow-x: scroll !important;
+      scrollbar-width: auto;
+      scrollbar-color: #E17908 #E2E8F0;
+    }
+    
+    #kanbanBoard::-webkit-scrollbar {
+      height: 13px !important;
+      display: block !important;
+    }
+    #kanbanBoard::-webkit-scrollbar-track {
+      background: #E2E8F0 !important;
+      border-radius: 9999px;
+      margin: 0 12px;
+      border: 2px solid #F8FAFC;
+    }
+    #kanbanBoard::-webkit-scrollbar-thumb {
+      background: #E17908 !important;
+      border-radius: 9999px;
+      border: 2.5px solid #E2E8F0;
+    }
+    #kanbanBoard::-webkit-scrollbar-thumb:hover {
+      background: #cf6d05 !important;
+    }
+
+    /* Vertical scrollbar inside columns */
+    .cards-scroll-container {
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+    .cards-scroll-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .cards-scroll-container::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 9999px;
+    }
+    .cards-scroll-container::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .cards-scroll-container::-webkit-scrollbar-thumb:hover {
+      background: #E17908;
+    }
+
+    /* Drag & drop styling */
+    .kanban-card.dragging {
+      opacity: 0.35;
+      transform: scale(0.97);
+    }
+    .kanban-column.drag-over {
+      background-color: #fff7ed !important;
+      border-color: #E17908 !important;
+    }
+
+    /* Tab transitions */
+    .tab-pane {
+      display: none;
+    }
+    .tab-pane.active {
+      display: block;
+      animation: fadeIn 0.18s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-800 selection:bg-[#E17908] selection:text-white antialiased">
+
+  <!-- TOP HEADER (PREVALÊNCIA DO BRANCO COM CORES DA LIFT) -->
+  <header class="bg-white border-b border-slate-200/90 px-4 md:px-8 py-3 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-[1920px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      
+      <!-- Brand & Lift Logo -->
+      <div class="flex items-center gap-3.5">
+        <div class="p-1 rounded-xl flex items-center justify-center">
+          <img id="headerLogoImg" src="logo-lift.png" alt="Lift Contabilidade" class="h-8 md:h-9 w-auto object-contain">
+        </div>
+        <div class="border-l border-slate-200 pl-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-widest font-black text-[#E17908]">Lift Contabilidade</span>
+            <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">Meta 52 Melhorias</span>
+          </div>
+          <h1 class="text-lg md:text-xl font-black text-[#033A65] tracking-tight flex items-center gap-1.5">
+            Portal das Melhorias
+          </h1>
+        </div>
+      </div>
+
+      <!-- Center: Year Selector (2026 / 2027) -->
+      <div class="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 shadow-inner">
+        <button id="btnYear2026" onclick="setYear(2026)" class="year-btn px-4 py-1.5 rounded-lg text-xs md:text-sm font-black transition-all duration-200 bg-[#E17908] text-white shadow-sm">
+          📅 Ano 2026
+        </button>
+        <button id="btnYear2027" onclick="setYear(2027)" class="year-btn px-4 py-1.5 rounded-lg text-xs md:text-sm font-extrabold transition-all duration-200 text-slate-600 hover:text-[#033A65] hover:bg-white">
+          📅 Ano 2027
+        </button>
+      </div>
+
+      <!-- Right Header Actions (Baixar Imagem removed from header as requested) -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Import Trello JSON -->
+        <button onclick="openImportModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-[#033A65] border border-slate-200 shadow-sm transition-all">
+          <i data-lucide="upload" class="w-3.5 h-3.5 text-[#E17908]"></i>
+          <span class="hidden md:inline">Importar Trello</span>
+        </button>
+
+        <!-- Export Data -->
+        <button onclick="exportDataJSON()" title="Exportar dados em JSON" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 border border-slate-200 shadow-sm transition-all">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span class="hidden md:inline">Backup</span>
+        </button>
+
+        <!-- New Card -->
+        <button onclick="openCardModal()" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#033A65] hover:bg-[#022847] text-xs md:text-sm font-black text-white shadow-md shadow-blue-950/20 transition-all">
+          <i data-lucide="plus" class="w-4 h-4 text-[#E17908]"></i>
+          <span>Nova Melhoria</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="flex-1 w-full p-3 sm:p-5 md:p-6 pb-28">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: FUNIL                               -->
+    <!-- ========================================== -->
+    <div id="tab-funil" class="tab-pane active w-full">
+      
+      <!-- Top Control Bar of Kanban (Clean and simple) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 bg-white border border-slate-200/90 py-3 px-4 rounded-2xl shadow-sm">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-black text-[#E17908] uppercase tracking-wider">Etapas de Processos da Lift</span>
+            <span id="kanbanYearBadge" class="bg-orange-50 text-[#E17908] text-xs font-black px-2.5 py-0.5 rounded-md border border-orange-200">Ano 2026</span>
+          </div>
+          <h2 class="text-xl md:text-2xl font-black text-[#033A65] mt-0.5 flex items-center gap-2">
+            Funil de Melhorias Contínuas
+          </h2>
+        </div>
+
+        <!-- Search & Actions -->
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <!-- Search Filter -->
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="kanbanSearch" oninput="filterCards()" placeholder="Buscar melhoria..." class="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#E17908] w-48 sm:w-56 transition-all">
+          </div>
+
+          <!-- Add Stage -->
+          <button onclick="openColumnModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-xs font-bold text-[#033A65] rounded-xl border border-slate-200 transition-all shadow-sm">
+            <i data-lucide="columns" class="w-3.5 h-3.5 text-[#E17908]"></i>
+            <span>Nova Etapa</span>
+          </button>
+
+          <!-- Reset Year -->
+          <button onclick="resetCurrentYear()" class="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 rounded-xl border border-rose-200 transition-all shadow-sm" title="Zerar todos os cartões do ano atual">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            <span>Zerar Ano</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- KANBAN BOARD CONTAINER WITH VISIBLE DEDICATED HORIZONTAL SCROLLBAR -->
+      <div class="relative w-full rounded-2xl bg-white p-3 border border-slate-200 shadow-sm">
+        
+        <!-- The board with explicit visible horizontal scrollbar -->
+        <div id="kanbanBoard" class="flex gap-4 overflow-x-scroll overflow-y-hidden pb-3 pt-1 px-1 items-start w-full scroll-smooth">
+          <!-- Rendered dynamically by app.js with white cards and light column styling -->
+        </div>
+
+        <!-- LATERAL NAVIGATION SLIDER TRACK -->
+        <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/80 px-3.5 py-1.5 rounded-xl border border-slate-200">
+          <div class="flex items-center gap-2 text-xs font-black text-[#033A65] shrink-0">
+            <i data-lucide="chevrons-left-right" class="w-4 h-4 text-[#E17908]"></i>
+            <span>Navegação Lateral:</span>
+          </div>
+
+          <!-- Range slider sync'd with kanban horizontal scroll -->
+          <div class="flex-1 max-w-xl mx-2">
+            <input type="range" id="kanbanRangeSlider" min="0" max="100" value="0" oninput="syncKanbanScrollFromSlider(this.value)" class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#E17908]">
+          </div>
+
+          <div class="text-[11px] font-bold text-slate-500 shrink-0">
+            6 Etapas
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 2: DASHBOARD                           -->
+    <!-- ========================================== -->
+    <div id="tab-dashboard" class="tab-pane max-w-7xl mx-auto">
+      
+      <!-- DASHBOARD CAPTURE AREA (EXECUTIVE PRESENTATION CARD - FORMATO SLIDE COMPACTO) -->
+      <div id="dashboardCaptureCard" class="bg-white rounded-3xl p-5 sm:p-6 md:p-7 border border-slate-200/90 shadow-xl space-y-3.5 text-slate-900 max-w-6xl mx-auto">
+        
+        <!-- DASHBOARD PRESENTATION BANNER & CONTROLS -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          
+          <!-- Logo + 52 MELHORIAS -->
+          <div class="flex items-center gap-3.5 flex-wrap">
+            <div class="p-1">
+              <img id="dashboardLogoImg" src="logo-lift.png" alt="Lift Contabilidade" class="h-8 md:h-9 w-auto object-contain">
+            </div>
+
+            <div class="flex items-center gap-1 select-none border-l border-slate-200 pl-3.5">
+              <span class="text-[#E17908] font-black text-xl md:text-2xl leading-none">|</span>
+              <h2 class="text-lg md:text-xl font-black text-[#033A65] tracking-wider uppercase px-1">
+                52 MELHORIAS
+              </h2>
+              <span class="text-[#E17908] font-black text-xl md:text-2xl leading-none">|</span>
+              <span id="dashYearTag" class="ml-2 text-xs font-black uppercase bg-[#E17908] text-white px-2 py-0.5 rounded-md tracking-wider shadow-sm">
+                2026
+              </span>
+            </div>
+          </div>
+
+          <!-- Date info + Presentation Download Button (Exclusively on Dashboard) -->
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <div class="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+              <i data-lucide="calendar" class="w-3.5 h-3.5 text-[#E17908]"></i>
+              <span id="dashCurrentDate">Semana atual: Semana 44 · 2026</span>
+            </div>
+
+            <!-- EXCLUSIVE DOWNLOAD BUTTON IN DASHBOARD (COMPACT SLIDE EXPORT) -->
+            <button onclick="downloadDashboardImage()" id="btnDownloadDashboard" data-html2canvas-ignore="true" class="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-[#E17908] to-[#cf6d05] hover:from-[#cf6d05] hover:to-[#b35e02] text-white text-xs md:text-sm font-black rounded-xl shadow-md shadow-orange-500/25 border border-orange-400/30 transition-all active:scale-95">
+              <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+              <span>Baixar Imagem do Dashboard</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ROW 1: 3 METRIC CARDS (Melhorias Feitas, Restantes, Status Atual) -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5">
+          
+          <!-- Card 1: Melhorias Feitas (Col 4) -->
+          <div class="md:col-span-4 bg-slate-50/70 hover:bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200 flex items-center justify-between transition-all hover:shadow-md">
+            <div>
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
+                Melhorias Feitas
+              </span>
+              <div class="flex items-center gap-2.5">
+                <span id="statCompletedCount" class="text-3xl md:text-4xl font-black text-[#033A65] tracking-tight">
+                  44
+                </span>
+                <!-- Interactive Stepper -->
+                <div class="flex flex-col gap-1">
+                  <button onclick="adjustCompleted(1)" title="Adicionar 1 melhoria concluída" class="w-5 h-5 rounded bg-white hover:bg-[#E17908] hover:text-white text-slate-700 flex items-center justify-center transition-all text-[10px] font-black shadow-xs border border-slate-200">
+                    ▲
+                  </button>
+                  <button onclick="adjustCompleted(-1)" title="Diminuir 1 melhoria concluída" class="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all text-[10px] font-black shadow-xs border border-slate-200">
+                    ▼
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Checkmark Icon Circle -->
+            <div class="w-12 h-12 rounded-full border-2 border-slate-200 bg-white flex items-center justify-center text-slate-400 shadow-sm shrink-0">
+              <i data-lucide="check" class="w-6 h-6 text-slate-400 stroke-[2.5]"></i>
+            </div>
+          </div>
+
+          <!-- Card 2: Restantes (Col 3) -->
+          <div class="md:col-span-3 bg-slate-50/70 hover:bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200 flex items-center justify-between transition-all hover:shadow-md">
+            <div>
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
+                Restantes
+              </span>
+              <span id="statRemainingCount" class="text-3xl md:text-4xl font-black text-[#033A65] tracking-tight block">
+                8
+              </span>
+            </div>
+
+            <!-- Target Icon Circle (Official Lift Orange) -->
+            <div class="w-12 h-12 rounded-full border border-orange-200 bg-orange-50 flex items-center justify-center text-[#E17908] shadow-sm shrink-0">
+              <div class="w-7 h-7 rounded-full border-2 border-[#E17908] flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-[#E17908]"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Status Atual (Col 5) - Green Light Box matching image -->
+          <div id="statStatusCard" class="md:col-span-5 bg-[#eafbf1] rounded-2xl p-4 sm:p-5 border border-emerald-200 flex flex-col justify-between transition-all hover:shadow-md">
+            <div>
+              <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
+                Status Atual
+              </span>
+              <h3 id="statStatusText" class="text-xl md:text-2xl font-black text-emerald-800 tracking-tight">
+                No Prazo
+              </h3>
+            </div>
+            <div class="mt-1 text-xs font-bold text-emerald-900/80">
+              Meta esperada: <span id="statExpectedCount">44</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ROW 2: PROGRESSO ANUAL & MELHORIAS NA SEMANA -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+          
+          <!-- Card 4: Progresso Anual (Col 7) -->
+          <div class="lg:col-span-7 bg-slate-50/60 rounded-2xl p-4 sm:p-5 border border-slate-200 flex flex-col justify-between space-y-3.5">
+            
+            <div>
+              <!-- Header with icon and % -->
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2 text-[#033A65] font-black text-sm md:text-base">
+                  <i data-lucide="trending-up" class="w-4 h-4 text-[#E17908] stroke-[2.5]"></i>
+                  <span>Progresso Anual</span>
+                </div>
+                <span id="statProgressPct" class="text-xl md:text-2xl font-black text-[#033A65]">
+                  84.6%
+                </span>
+              </div>
+
+              <!-- Thick Navy Progress Bar with Orange Marker -->
+              <div class="relative pt-1 pb-0.5">
+                <div class="w-full h-4 bg-white rounded-full overflow-hidden p-0.5 border border-slate-200 shadow-inner">
+                  <div id="progressBarFill" class="h-full bg-[#033A65] rounded-full transition-all duration-700 relative" style="width: 84.6%;">
+                    <!-- Orange edge indicator -->
+                    <div class="absolute right-0 top-0 bottom-0 w-2 bg-[#E17908] rounded-r-full shadow"></div>
+                  </div>
+                </div>
+
+                <!-- Labels: Inicio, Meta Atual (Semana XX), Fim (52) -->
+                <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 mt-2">
+                  <span>Início</span>
+                  <span class="flex items-center gap-1.5 text-slate-800 font-extrabold">
+                    <span class="w-2 h-2 rounded-full bg-[#E17908]"></span>
+                    Meta Atual (<span id="progressWeekLabel">Semana 44</span>)
+                  </span>
+                  <span>Fim (52)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Feedback Alert Banner -->
+            <div id="statAlertBox" class="bg-[#f0fdf4] border border-emerald-300 rounded-xl p-2.5 flex items-start gap-2.5">
+              <div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5 text-emerald-700">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+              </div>
+              <div>
+                <h4 id="statAlertTitle" class="text-[11px] font-black text-emerald-900 uppercase tracking-wide">
+                  Excelente ritmo!
+                </h4>
+                <p id="statAlertDesc" class="text-[11px] font-medium text-emerald-800 mt-0.5">
+                  Parabéns! Você está cumprindo a meta semanal.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Card 5: Melhorias na Semana (Col 5) -->
+          <div class="lg:col-span-5 bg-slate-50/60 rounded-2xl p-4 sm:p-5 border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2.5">
+                <div class="flex items-center gap-2 text-[#033A65] font-black text-sm md:text-base">
+                  <i data-lucide="menu" class="w-4 h-4 text-slate-600 stroke-[2.5]"></i>
+                  <span>Melhorias na Semana</span>
+                </div>
+                <span id="weekItemsCount" class="text-[11px] font-black bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md shadow-xs">
+                  1 item
+                </span>
+              </div>
+
+              <!-- List of week improvements -->
+              <div id="weekImprovementsList" class="space-y-2">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <button onclick="openCardModal()" class="mt-2.5 w-full py-1.5 bg-white hover:bg-[#E17908] hover:text-white text-[#033A65] border border-slate-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs">
+              <i data-lucide="plus" class="w-3.5 h-3.5 text-[#E17908] group-hover:text-white"></i>
+              Registrar melhoria nesta semana
+            </button>
+          </div>
+
+        </div>
+
+        <!-- ROW 3: ÚLTIMAS MELHORIAS IMPLEMENTADAS (APENAS AS CONCLUÍDAS - FORMATO SLIDE COMPACTO) -->
+        <div class="bg-slate-50/60 rounded-2xl p-4 sm:p-5 border border-slate-200 space-y-2.5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+            <div>
+              <h3 class="text-sm font-black text-[#033A65] flex items-center gap-1.5">
+                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+                Últimas Melhorias Implementadas
+              </h3>
+              <p class="text-[11px] text-slate-500 mt-0.5">Exibindo apenas as melhorias concluídas mais recentes que pontuam na meta.</p>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <span id="totalListedBadge" class="text-[11px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg shadow-xs">
+                45 implementadas no total
+              </span>
+            </div>
+          </div>
+
+          <!-- Compact Table (Fits slide screen perfectly without vertical overflow) -->
+          <div class="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                <tr>
+                  <th class="py-2 px-3 w-8">#</th>
+                  <th class="py-2 px-3">Título da Melhoria</th>
+                  <th class="py-2 px-3 whitespace-nowrap">Setor / Tag</th>
+                  <th class="py-2 px-3 whitespace-nowrap">Semana / Data</th>
+                  <th class="py-2 px-3 text-right whitespace-nowrap">Status</th>
+                </tr>
+              </thead>
+              <tbody id="latestImprovementsTableBody" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+
+  <!-- ========================================== -->
+  <!-- BARRA INFERIOR DE NAVEGAÇÃO COM ABAS       -->
+  <!-- ========================================== -->
+  <nav class="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_25px_rgba(0,0,0,0.08)]">
+    <div class="max-w-md mx-auto px-4 py-2 flex items-center justify-around gap-2">
+      
+      <!-- ABA: FUNIL -->
+      <button id="navTabFunil" onclick="switchTab('funil')" class="nav-tab-btn flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200 text-[#E17908] bg-orange-50/80 border border-orange-200 shadow-sm">
+        <i data-lucide="trello" class="w-5 h-5 mb-1 stroke-[2.2]"></i>
+        <span class="text-xs font-black tracking-wide">Funil</span>
+      </button>
+
+      <!-- ABA: DASHBOARD -->
+      <button id="navTabDashboard" onclick="switchTab('dashboard')" class="nav-tab-btn flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200 text-slate-500 hover:text-[#033A65] hover:bg-slate-50">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 mb-1 stroke-[2.2]"></i>
+        <span class="text-xs font-black tracking-wide">Dashboard</span>
+      </button>
+
+    </div>
+  </nav>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: ADICIONAR / EDITAR CARTÃO           -->
+  <!-- ========================================== -->
+  <div id="cardModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-lg shadow-2xl p-6 text-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+      
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-[#E17908] text-white flex items-center justify-center font-bold shadow-sm">
+            <i data-lucide="edit-3" class="w-4 h-4"></i>
+          </div>
+          <h3 id="cardModalTitle" class="text-base font-black text-[#033A65]">Nova Melhoria</h3>
+        </div>
+        <button onclick="closeCardModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="cardForm" onsubmit="saveCard(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="cardId">
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Título da Melhoria *</label>
+          <input type="text" id="cardTitleInput" required placeholder="Ex: Quadro de Metas" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#E17908]">
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Descrição / Detalhes</label>
+          <textarea id="cardDescInput" rows="3" placeholder="Ex: Atualização no filtro do quadro de metas e relatórios..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#E17908]"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Etapa (Coluna) *</label>
+            <select id="cardColumnSelect" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-[#E17908]">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Setor / Departamento</label>
+            <select id="cardTagSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-[#E17908]">
+              <option value="Operação">Operação</option>
+              <option value="Fiscal">Fiscal</option>
+              <option value="Contábil">Contábil</option>
+              <option value="DP / RH">DP / RH</option>
+              <option value="TI / Automação">TI / Automação</option>
+              <option value="Comercial">Comercial</option>
+              <option value="Atendimento">Atendimento</option>
+              <option value="Legalização">Legalização</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Gestão">Gestão</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Semana do Ano (1 - 52)</label>
+            <input type="number" id="cardWeekInput" min="1" max="52" value="44" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-[#E17908]">
+          </div>
+
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Responsável</label>
+            <input type="text" id="cardAuthorInput" placeholder="Ex: Pedro Levi / Lucas / Time" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#E17908]">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+          <button type="button" id="btnDeleteCard" onclick="deleteCurrentCard()" class="hidden px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold transition-all border border-rose-200">
+            Excluir
+          </button>
+          <div class="flex items-center gap-2 ml-auto">
+            <button type="button" onclick="closeCardModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all">
+              Cancelar
+            </button>
+            <button type="submit" class="px-5 py-2 bg-[#E17908] hover:bg-[#cf6d05] text-white rounded-xl font-black shadow-md transition-all">
+              Salvar Melhoria
+            </button>
+          </div>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: IMPORTAR TRELLO JSON                -->
+  <!-- ========================================== -->
+  <div id="importModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-xl shadow-2xl p-6 text-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+      
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-[#E17908] text-white flex items-center justify-center font-bold">
+            <i data-lucide="upload" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-black text-[#033A65]">Importar Dados do Trello</h3>
+            <p class="text-xs text-slate-500">Carregue o arquivo JSON ou cole o texto exportado do Trello.</p>
+          </div>
+        </div>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <!-- Target Year selection -->
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Importar para qual ano?</label>
+          <div class="flex gap-3">
+            <label class="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-white">
+              <input type="radio" name="importTargetYear" value="2026" checked class="text-[#E17908] focus:ring-[#E17908]">
+              <span class="font-bold text-[#033A65]">Ano 2026</span>
+            </label>
+            <label class="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-white">
+              <input type="radio" name="importTargetYear" value="2027" class="text-[#E17908] focus:ring-[#E17908]">
+              <span class="font-bold text-[#033A65]">Ano 2027</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- File Upload Area -->
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Arquivo JSON exportado do Trello:</label>
+          <div class="border-2 border-dashed border-slate-300 hover:border-[#E17908] rounded-2xl p-6 text-center cursor-pointer bg-slate-50/70 hover:bg-white transition-all relative">
+            <input type="file" id="trelloFileInput" accept=".json" onchange="handleFileUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
+            <i data-lucide="file-json" class="w-10 h-10 text-[#E17908] mx-auto mb-2"></i>
+            <p class="font-bold text-[#033A65] text-sm">Clique para selecionar o arquivo .json do Trello</p>
+            <p class="text-[11px] text-slate-400 mt-1">Exportado em: Trello > Mostrar Menu > Mais > Imprimir e Exportar > Exportar JSON</p>
+          </div>
+        </div>
+
+        <!-- Or Paste JSON -->
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Ou cole o texto do JSON aqui:</label>
+          <textarea id="trelloJsonPaste" rows="5" placeholder="Cole aqui o conteúdo JSON do Trello..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 font-mono text-[11px] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#E17908]"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeImportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all">
+            Cancelar
+          </button>
+          <button type="button" onclick="processTrelloPaste()" class="px-5 py-2 bg-[#E17908] hover:bg-[#cf6d05] text-white rounded-xl font-black shadow-md transition-all flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            Processar e Atualizar Portal
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: NOVA COLUNA / ETAPA                 -->
+  <!-- ========================================== -->
+  <div id="columnModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-sm shadow-2xl p-6 text-slate-800 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="text-base font-black text-[#033A65]">Nova Etapa (Coluna)</h3>
+        <button onclick="closeColumnModal()" class="text-slate-400 hover:text-slate-700 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="saveColumn(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Nome da Etapa *</label>
+          <input type="text" id="columnTitleInput" required placeholder="Ex: Validação com Diretoria" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-[#E17908]">
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="columnIsDoneCheckbox" class="rounded text-[#E17908] focus:ring-[#E17908]">
+          <label for="columnIsDoneCheckbox" class="text-slate-700 font-medium">Esta etapa representa "Melhoria Concluída" (conta para a meta de 52)</label>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeColumnModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-[#E17908] hover:bg-[#cf6d05] text-white rounded-xl font-black shadow-md">
+            Criar Etapa
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="data_trello.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
