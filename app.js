@@ -80,6 +80,9 @@ function initApp() {
   // Setup Board Wheel Scroll
   setupBoardWheelScroll();
 
+  // Initialize Supabase Cloud Sync (Real-time team synchronization)
+  initSupabaseClient();
+
   // Check URL hash for initial tab
   if (window.location.hash === '#dashboard') {
     switchTab('dashboard');
@@ -426,6 +429,17 @@ function moveCardToList(cardId, targetListId) {
     }
     persistData();
     renderAll();
+
+    // Sincronizar mudança de etapa na nuvem (Supabase)
+    if (supabaseClient) {
+      supabaseClient.from('melhorias').update({
+        id_list: targetListId,
+        week: card.week,
+        date: card.date
+      }).eq('id', cardId).then(({ error }) => {
+        if (error) console.warn('Supabase move error:', error);
+      });
+    }
   }
 }
 
@@ -840,6 +854,26 @@ function saveCard(event) {
   persistData();
   closeCardModal();
   renderAll();
+
+  // Sincronizar criação / edição na nuvem (Supabase)
+  if (supabaseClient) {
+    const cardToSync = id ? cards.find(c => c.id === id) : cards[cards.length - 1];
+    if (cardToSync) {
+      supabaseClient.from('melhorias').upsert({
+        id: cardToSync.id,
+        year: currentYear,
+        id_list: cardToSync.idList,
+        name: cardToSync.name,
+        description: cardToSync.desc || '',
+        tag: cardToSync.tag || 'Geral',
+        author: cardToSync.author || 'Pedro Levi',
+        week: cardToSync.week || currentWeek,
+        date: cardToSync.date || new Date().toISOString()
+      }).then(({ error }) => {
+        if (error) console.warn('Supabase upsert error:', error);
+      });
+    }
+  }
 }
 
 function deleteCurrentCard() {
@@ -851,6 +885,13 @@ function deleteCurrentCard() {
     persistData();
     closeCardModal();
     renderAll();
+
+    // Sincronizar exclusão na nuvem (Supabase)
+    if (supabaseClient) {
+      supabaseClient.from('melhorias').delete().eq('id', id).then(({ error }) => {
+        if (error) console.warn('Supabase delete error:', error);
+      });
+    }
   }
 }
 
@@ -1075,6 +1116,237 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ============================================================
+// SUPABASE (POSTGRESQL NA NUVEM) - SINCRONIZAÇÃO EM TEMPO REAL
+// ============================================================
+let supabaseClient = null;
+
+function initSupabaseClient() {
+  const url = (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) ? SUPABASE_URL.trim() : (localStorage.getItem('lift_supabase_url') || '').trim();
+  const key = (typeof SUPABASE_ANON_KEY !== 'undefined' && SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY.trim() : (localStorage.getItem('lift_supabase_key') || '').trim();
+
+  const dot = document.getElementById('cloudStatusDot');
+  const txt = document.getElementById('cloudStatusText');
+
+  if (url && key && window.supabase) {
+    try {
+      supabaseClient = window.supabase.createClient(url, key);
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
+      if (txt) txt.textContent = 'Nuvem: Ativa';
+
+      syncFromSupabase();
+      subscribeSupabaseRealtime();
+    } catch (err) {
+      console.warn('Erro ao inicializar Supabase:', err);
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-rose-500 shrink-0';
+      if (txt) txt.textContent = 'Nuvem: Erro';
+    }
+  } else {
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
+    if (txt) txt.textContent = 'Conectar Nuvem';
+  }
+}
+
+async function syncFromSupabase() {
+  if (!supabaseClient) return;
+
+  try {
+    const { data, error } = await supabaseClient.from('melhorias').select('*');
+    if (error) {
+      console.warn('Supabase fetch error:', error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      // Auto-seed banco de dados na nuvem com melhorias existentes
+      const cards2026 = cardsByYear[2026] || [];
+      if (cards2026.length > 0) {
+        const seedRows = cards2026.map(c => ({
+          id: c.id,
+          year: 2026,
+          id_list: c.idList,
+          name: c.name,
+          description: c.desc || '',
+          tag: c.tag || 'Geral',
+          author: c.author || 'Pedro Levi',
+          week: c.week || 44,
+          date: c.date || new Date().toISOString()
+        }));
+        await supabaseClient.from('melhorias').upsert(seedRows);
+      }
+    } else {
+      cardsByYear[2026] = data.filter(r => r.year === 2026).map(r => ({
+        id: r.id,
+        idShort: 1,
+        idList: r.id_list,
+        name: r.name,
+        desc: r.description || '',
+        tag: r.tag || 'Geral',
+        author: r.author || 'Pedro Levi',
+        week: r.week || 44,
+        date: r.date || new Date().toISOString()
+      }));
+
+      cardsByYear[2027] = data.filter(r => r.year === 2027).map(r => ({
+        id: r.id,
+        idShort: 1,
+        idList: r.id_list,
+        name: r.name,
+        desc: r.description || '',
+        tag: r.tag || 'Geral',
+        author: r.author || 'Pedro Levi',
+        week: r.week || 1,
+        date: r.date || new Date().toISOString()
+      }));
+
+      persistData();
+      renderAll();
+    }
+  } catch (err) {
+    console.warn('Erro ao sincronizar do Supabase:', err);
+  }
+}
+
+function subscribeSupabaseRealtime() {
+  if (!supabaseClient) return;
+
+  try {
+    supabaseClient
+      .channel('melhorias_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'melhorias' }, (payload) => {
+        const eventType = payload.eventType;
+        const row = payload.new;
+        const old = payload.old;
+
+        if (eventType === 'INSERT' && row) {
+          const yr = row.year || 2026;
+          const card = {
+            id: row.id,
+            idShort: 1,
+            idList: row.id_list,
+            name: row.name,
+            desc: row.description || '',
+            tag: row.tag || 'Geral',
+            author: row.author || 'Pedro Levi',
+            week: row.week || 44,
+            date: row.date || new Date().toISOString()
+          };
+          if (!cardsByYear[yr].some(c => c.id === card.id)) {
+            cardsByYear[yr].push(card);
+          }
+        } else if (eventType === 'UPDATE' && row) {
+          const yr = row.year || 2026;
+          const card = cardsByYear[yr].find(c => c.id === row.id);
+          if (card) {
+            card.idList = row.id_list;
+            card.name = row.name;
+            card.desc = row.description || '';
+            card.tag = row.tag || 'Geral';
+            card.author = row.author || 'Pedro Levi';
+            card.week = row.week;
+            card.date = row.date;
+          } else {
+            cardsByYear[yr].push({
+              id: row.id,
+              idShort: 1,
+              idList: row.id_list,
+              name: row.name,
+              desc: row.description || '',
+              tag: row.tag || 'Geral',
+              author: row.author || 'Pedro Levi',
+              week: row.week || 44,
+              date: row.date || new Date().toISOString()
+            });
+          }
+        } else if (eventType === 'DELETE' && old) {
+          cardsByYear[2026] = cardsByYear[2026].filter(c => c.id !== old.id);
+          cardsByYear[2027] = cardsByYear[2027].filter(c => c.id !== old.id);
+        }
+
+        persistData();
+        renderAll();
+      })
+      .subscribe();
+  } catch (err) {
+    console.warn('Erro no Realtime do Supabase:', err);
+  }
+}
+
+function openSupabaseModal() {
+  const modal = document.getElementById('supabaseModal');
+  const url = (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) ? SUPABASE_URL.trim() : (localStorage.getItem('lift_supabase_url') || '').trim();
+  const key = (typeof SUPABASE_ANON_KEY !== 'undefined' && SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY.trim() : (localStorage.getItem('lift_supabase_key') || '').trim();
+
+  document.getElementById('supabaseUrlInput').value = url;
+  document.getElementById('supabaseKeyInput').value = key;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeSupabaseModal() {
+  const modal = document.getElementById('supabaseModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+function copySupabaseSQL() {
+  const sql = `-- TABELA DE MELHORIAS (LIFT CONTABILIDADE)
+CREATE TABLE IF NOT EXISTS melhorias (
+  id TEXT PRIMARY KEY,
+  year INT NOT NULL DEFAULT 2026,
+  id_list TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  tag TEXT DEFAULT 'Geral',
+  author TEXT DEFAULT 'Pedro Levi',
+  week INT DEFAULT 44,
+  date TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Habilitar Row Level Security (RLS) com acesso público
+ALTER TABLE melhorias ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Permitir leitura pública" ON melhorias FOR SELECT USING (true);
+CREATE POLICY "Permitir inserção pública" ON melhorias FOR INSERT WITH CHECK (true);
+CREATE POLICY "Permitir atualização pública" ON melhorias FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir exclusão pública" ON melhorias FOR DELETE USING (true);
+
+-- Habilitar sincronização em tempo real (Realtime)
+ALTER PUBLICATION supabase_realtime ADD TABLE melhorias;`;
+
+  navigator.clipboard.writeText(sql).then(() => {
+    const btn = document.getElementById('btnCopySql');
+    if (btn) {
+      btn.innerHTML = '✓ SQL Copiado!';
+      setTimeout(() => {
+        btn.innerHTML = '<i data-lucide="copy" class="w-3 h-3"></i><span>Copiar Script SQL</span>';
+        if (window.lucide) lucide.createIcons();
+      }, 2500);
+    }
+  }).catch(() => {
+    alert('SQL para copiar:\n\n' + sql);
+  });
+}
+
+function saveSupabaseConfig() {
+  const url = document.getElementById('supabaseUrlInput').value.trim();
+  const key = document.getElementById('supabaseKeyInput').value.trim();
+
+  if (!url || !key) {
+    alert('Por favor, preencha a URL e a Anon Key do Supabase.');
+    return;
+  }
+
+  localStorage.setItem('lift_supabase_url', url);
+  localStorage.setItem('lift_supabase_key', key);
+
+  closeSupabaseModal();
+  initSupabaseClient();
+  alert('Configuração do Supabase salva com sucesso! Sincronizando com a nuvem...');
 }
 
 // Start
