@@ -192,26 +192,9 @@ function scrollKanban(amount) {
   }
 }
 
-function syncKanbanScrollFromSlider(val) {
-  const board = document.getElementById('kanbanBoard');
-  if (board) {
-    const maxScroll = board.scrollWidth - board.clientWidth;
-    board.scrollLeft = (val / 100) * maxScroll;
-  }
-}
-
 function setupBoardWheelScroll() {
   const board = document.getElementById('kanbanBoard');
   if (!board) return;
-
-  // Sync range slider on scroll
-  board.addEventListener('scroll', () => {
-    const slider = document.getElementById('kanbanRangeSlider');
-    if (slider && board.scrollWidth > board.clientWidth) {
-      const pct = (board.scrollLeft / (board.scrollWidth - board.clientWidth)) * 100;
-      slider.value = pct;
-    }
-  }, { passive: true });
 
   board.addEventListener('wheel', (evt) => {
     const cardsContainer = evt.target.closest('.cards-scroll-container');
@@ -251,9 +234,9 @@ function renderKanban() {
     // Column Element (Light theme, distinct borders, smooth heights)
     const colEl = document.createElement('div');
     colEl.className = 'kanban-column flex-shrink-0 w-80 bg-[#F1F5F9] border border-slate-200/90 rounded-2xl flex flex-col shadow-sm transition-all';
-    colEl.style.height = 'calc(100vh - 350px)';
-    colEl.style.minHeight = '360px';
-    colEl.style.maxHeight = '570px';
+    colEl.style.height = 'calc(100vh - 310px)';
+    colEl.style.minHeight = '380px';
+    colEl.style.maxHeight = '620px';
     colEl.dataset.listId = list.id;
 
     // Drag-over events for column

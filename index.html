@@ -226,27 +226,9 @@
 
       <!-- KANBAN BOARD CONTAINER WITH VISIBLE DEDICATED HORIZONTAL SCROLLBAR -->
       <div class="relative w-full rounded-2xl bg-white p-3 border border-slate-200 shadow-sm">
-        
         <!-- The board with explicit visible horizontal scrollbar -->
         <div id="kanbanBoard" class="flex gap-4 overflow-x-scroll overflow-y-hidden pb-3 pt-1 px-1 items-start w-full scroll-smooth">
           <!-- Rendered dynamically by app.js with white cards and light column styling -->
-        </div>
-
-        <!-- LATERAL NAVIGATION SLIDER TRACK -->
-        <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/80 px-3.5 py-1.5 rounded-xl border border-slate-200">
-          <div class="flex items-center gap-2 text-xs font-black text-[#033A65] shrink-0">
-            <i data-lucide="chevrons-left-right" class="w-4 h-4 text-[#E17908]"></i>
-            <span>Navegação Lateral:</span>
-          </div>
-
-          <!-- Range slider sync'd with kanban horizontal scroll -->
-          <div class="flex-1 max-w-xl mx-2">
-            <input type="range" id="kanbanRangeSlider" min="0" max="100" value="0" oninput="syncKanbanScrollFromSlider(this.value)" class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#E17908]">
-          </div>
-
-          <div class="text-[11px] font-bold text-slate-500 shrink-0">
-            6 Etapas
-          </div>
         </div>
       </div>
 
