@@ -324,7 +324,7 @@
         <!-- ROW 2: PROGRESSO ANUAL & MELHORIAS NA SEMANA -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
           
-          <!-- Card 4: Progresso Anual (Col 7) -->
+          <!-- Card 4: Progresso Anual & Gráfico Mensal (Col 7) -->
           <div class="lg:col-span-7 bg-slate-50/60 rounded-2xl p-4 sm:p-5 border border-slate-200 flex flex-col justify-start space-y-3.5">
             
             <div>
@@ -357,6 +357,24 @@
                   </span>
                   <span>Fim (52)</span>
                 </div>
+              </div>
+            </div>
+
+            <!-- CHART: MELHORIAS CONCLUÍDAS POR MÊS DO ANO -->
+            <div class="pt-2.5 border-t border-slate-200/90">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-black text-[#033A65] uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-[#E17908]"></i>
+                  <span>Melhorias Concluídas por Mês</span>
+                </span>
+                <span id="monthlyChartTotal" class="text-[11px] font-bold text-slate-500">
+                  Total: <strong class="text-[#033A65]">0</strong>
+                </span>
+              </div>
+
+              <!-- Container for the 12 month bars -->
+              <div id="monthlyChartContainer" class="grid grid-cols-12 gap-1 sm:gap-1.5 items-end h-28 bg-white p-2 sm:p-2.5 rounded-xl border border-slate-200 shadow-inner">
+                <!-- Rendered dynamically by app.js -->
               </div>
             </div>
 

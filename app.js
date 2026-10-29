@@ -568,8 +568,79 @@ function renderDashboard() {
     if (alertDesc) alertDesc.textContent = `Faltam ${diff} melhorias para alcançar a meta esperada para a Semana ${currentWeek}.`;
   }
 
+  renderMonthlyChart(completedCards);
   renderWeekImprovements(completedCards);
   renderLatestImprovementsTable(cards);
+
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+}
+
+// Render Monthly Improvements Bar Chart
+function renderMonthlyChart(completedCards) {
+  const container = document.getElementById('monthlyChartContainer');
+  const totalEl = document.getElementById('monthlyChartTotal');
+  if (!container) return;
+
+  const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const monthFullNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  const monthlyCounts = Array(12).fill(0);
+
+  completedCards.forEach(c => {
+    let m = -1;
+    if (c.date) {
+      const d = new Date(c.date);
+      if (!isNaN(d.getTime())) {
+        m = d.getMonth();
+      }
+    }
+    if (m < 0 || m > 11) {
+      if (c.week) {
+        const approx = new Date(currentYear, 0, Math.max(1, (c.week - 1) * 7 + 3));
+        m = approx.getMonth();
+      } else {
+        m = 0;
+      }
+    }
+    if (m >= 0 && m <= 11) {
+      monthlyCounts[m]++;
+    }
+  });
+
+  if (totalEl) {
+    totalEl.innerHTML = `Total: <strong class="text-[#033A65]">${completedCards.length}</strong>`;
+  }
+
+  const maxVal = Math.max(...monthlyCounts, 1);
+  const now = new Date();
+  const currentMonthIdx = (currentYear === now.getFullYear()) ? now.getMonth() : -1;
+
+  container.innerHTML = monthNames.map((name, idx) => {
+    const count = monthlyCounts[idx];
+    const isCurrent = (idx === currentMonthIdx);
+    const heightPct = count > 0 ? Math.max(18, Math.round((count / maxVal) * 88)) : 6;
+    const barBg = count > 0 
+      ? (isCurrent ? 'bg-gradient-to-t from-[#E17908] to-[#f59e0b]' : 'bg-gradient-to-t from-[#033A65] to-[#0d5994] hover:from-[#E17908] hover:to-[#cf6d05]')
+      : 'bg-slate-200/70';
+
+    return `
+      <div class="flex flex-col items-center h-full justify-end group cursor-default" title="${monthFullNames[idx]}: ${count} ${count === 1 ? 'melhoria' : 'melhorias'}">
+        <span class="text-[10px] leading-tight mb-1 font-black ${count > 0 ? (isCurrent ? 'text-[#E17908]' : 'text-[#033A65]') : 'text-slate-300'} transition-transform group-hover:scale-110">
+          ${count > 0 ? count : '0'}
+        </span>
+        <div class="w-full max-w-[20px] bg-slate-100 rounded-t-md overflow-hidden flex flex-col justify-end h-16 sm:h-20 p-0.5">
+          <div class="w-full ${barBg} rounded-t-sm transition-all duration-500 shadow-xs" style="height: ${heightPct}%;"></div>
+        </div>
+        <span class="text-[9px] sm:text-[10px] font-black mt-1 uppercase ${isCurrent ? 'text-[#E17908] font-black' : 'text-slate-500 group-hover:text-[#033A65]'}">
+          ${name}
+        </span>
+      </div>
+    `;
+  }).join('');
 }
 
 // Render "Melhorias na Semana" list
