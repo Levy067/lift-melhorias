@@ -317,11 +317,6 @@ function renderKanban() {
     colEl.appendChild(cardsContainer);
     container.appendChild(colEl);
   });
-
-  // End Spacer for horizontal scrolling to ensure the last column has generous right margin!
-  const endSpacer = document.createElement('div');
-  endSpacer.className = 'w-72 flex-shrink-0 h-10';
-  container.appendChild(endSpacer);
 }
 
 // Create single Kanban Card Element (Pure White with subtle borders and shadows)
