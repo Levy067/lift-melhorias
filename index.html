@@ -140,8 +140,9 @@
         </div>
       </div>
 
-      <!-- Center: Single Year Selector Button -->
-      <div class="relative inline-flex items-center">
+      <!-- Right Header Actions: Year Selector + Nova Melhoria -->
+      <div class="flex items-center gap-2.5">
+        <!-- Single Year Selector Button -->
         <div class="group relative flex items-center bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all">
           <span class="pl-3 pointer-events-none text-[#E17908] flex items-center">
             <i data-lucide="calendar" class="w-4 h-4"></i>
@@ -154,28 +155,6 @@
             <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
           </span>
         </div>
-      </div>
-
-      <!-- Right Header Actions -->
-      <div class="flex items-center gap-2 flex-wrap">
-        <!-- Cloud Sync Status (Firebase Firestore) -->
-        <div id="btnCloudSync" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-xs font-bold text-slate-700 border border-slate-200 shadow-sm select-none">
-          <span id="cloudStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-          <i data-lucide="cloud" class="w-3.5 h-3.5 text-emerald-600"></i>
-          <span id="cloudStatusText" class="hidden sm:inline">Nuvem Conectada</span>
-        </div>
-
-        <!-- Import Trello JSON -->
-        <button onclick="openImportModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-[#033A65] border border-slate-200 shadow-sm transition-all">
-          <i data-lucide="upload" class="w-3.5 h-3.5 text-[#E17908]"></i>
-          <span class="hidden md:inline">Importar Trello</span>
-        </button>
-
-        <!-- Export Data -->
-        <button onclick="exportDataJSON()" title="Exportar dados em JSON" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 border border-slate-200 shadow-sm transition-all">
-          <i data-lucide="download" class="w-3.5 h-3.5"></i>
-          <span class="hidden md:inline">Backup</span>
-        </button>
 
         <!-- New Card -->
         <button onclick="openCardModal()" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#033A65] hover:bg-[#022847] text-xs md:text-sm font-black text-white shadow-md shadow-blue-950/20 transition-all">
