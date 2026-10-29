@@ -920,6 +920,117 @@ function saveColumn(event) {
 }
 
 // ============================================================
+// MODAL: DELETE COLUMN (EXCLUIR ETAPA VAZIA)
+// ============================================================
+function openDeleteColumnModal() {
+  const modal = document.getElementById('deleteColumnModal');
+  const select = document.getElementById('deleteColumnSelect');
+  const confirmBtn = document.getElementById('btnConfirmDeleteColumn');
+  const warningBox = document.getElementById('deleteColumnWarning');
+  const warningText = document.getElementById('deleteColumnWarningText');
+
+  if (!modal || !select) return;
+
+  select.innerHTML = '';
+  let hasEmptyCol = false;
+
+  lists.forEach(list => {
+    const cards2026 = (cardsByYear[2026] || []).filter(c => c.idList === list.id).length;
+    const cards2027 = (cardsByYear[2027] || []).filter(c => c.idList === list.id).length;
+    const totalCards = cards2026 + cards2027;
+
+    const opt = document.createElement('option');
+    opt.value = list.id;
+    opt.dataset.totalCards = totalCards;
+
+    if (totalCards > 0) {
+      opt.textContent = `${list.name} (${totalCards} ${totalCards === 1 ? 'cartão' : 'cartões'} - bloqueada)`;
+      opt.disabled = true;
+    } else {
+      opt.textContent = `${list.name} (Vazia - pronta para exclusão)`;
+      hasEmptyCol = true;
+    }
+    select.appendChild(opt);
+  });
+
+  function updateDeleteState() {
+    const selectedOpt = select.options[select.selectedIndex];
+    if (!selectedOpt) {
+      if (confirmBtn) confirmBtn.disabled = true;
+      if (warningBox) warningBox.classList.add('hidden');
+      return;
+    }
+    const totalCards = parseInt(selectedOpt.dataset.totalCards || '0', 10);
+    if (totalCards > 0) {
+      if (confirmBtn) confirmBtn.disabled = true;
+      if (warningBox && warningText) {
+        warningBox.classList.remove('hidden');
+        warningText.textContent = `A etapa "${selectedOpt.text}" possui cartões ativos e não pode ser excluída. Mova ou remova os cartões antes de prosseguir.`;
+      }
+    } else {
+      if (confirmBtn) confirmBtn.disabled = false;
+      if (warningBox) warningBox.classList.add('hidden');
+    }
+  }
+
+  select.onchange = updateDeleteState;
+
+  const firstEnabled = Array.from(select.options).find(o => !o.disabled);
+  if (firstEnabled) {
+    select.value = firstEnabled.value;
+  }
+
+  updateDeleteState();
+
+  if (!hasEmptyCol && warningBox && warningText) {
+    warningBox.classList.remove('hidden');
+    warningText.textContent = 'Nenhuma etapa vazia encontrada. Todas as etapas atuais possuem cartões. Para excluir uma etapa, remova ou transfira os cartões dela primeiro.';
+    if (confirmBtn) confirmBtn.disabled = true;
+  }
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeDeleteColumnModal() {
+  const modal = document.getElementById('deleteColumnModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function confirmDeleteColumn() {
+  const select = document.getElementById('deleteColumnSelect');
+  if (!select) return;
+  const listId = select.value;
+  const listToDelete = lists.find(l => l.id === listId);
+  if (!listToDelete) return;
+
+  const totalCards = (cardsByYear[2026] || []).filter(c => c.idList === listId).length + 
+                     (cardsByYear[2027] || []).filter(c => c.idList === listId).length;
+
+  if (totalCards > 0) {
+    alert(`Atenção: A etapa "${listToDelete.name}" possui ${totalCards} cartão(ões). Só é permitido excluir etapas sem nenhum cartão.`);
+    return;
+  }
+
+  if (lists.length <= 1) {
+    alert('O Funil precisa manter pelo menos uma etapa.');
+    return;
+  }
+
+  if (confirm(`Tem certeza de que deseja excluir a etapa "${listToDelete.name}"?`)) {
+    lists = lists.filter(l => l.id !== listId);
+    persistData();
+    closeDeleteColumnModal();
+    populateColumnSelect();
+    renderAll();
+  }
+}
+
+// ============================================================
 // MODAL: IMPORT TRELLO JSON
 // ============================================================
 function openImportModal() {

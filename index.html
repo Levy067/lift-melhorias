@@ -196,6 +196,12 @@
             <i data-lucide="columns" class="w-3.5 h-3.5 text-[#E17908]"></i>
             <span>Nova Etapa</span>
           </button>
+
+          <!-- Delete Stage -->
+          <button onclick="openDeleteColumnModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 text-xs font-bold text-rose-600 hover:text-rose-700 rounded-xl border border-rose-200/80 transition-all shadow-sm" title="Excluir uma etapa vazia">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-500"></i>
+            <span>Excluir Etapa</span>
+          </button>
         </div>
       </div>
 
@@ -652,6 +658,52 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: EXCLUIR ETAPA (APENAS ETAPAS VAZIAS)-->
+  <!-- ========================================== -->
+  <div id="deleteColumnModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-sm shadow-2xl p-6 text-slate-800 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-base font-black text-[#033A65]">Excluir Etapa</h3>
+        </div>
+        <button onclick="closeDeleteColumnModal()" class="text-slate-400 hover:text-slate-700 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs">
+        <p class="text-slate-600 leading-relaxed">
+          Selecione a etapa que deseja remover. Por segurança, apenas etapas <strong>sem nenhum cartão</strong> podem ser excluídas.
+        </p>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1.5">Escolha a Etapa:</label>
+          <select id="deleteColumnSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white focus:border-[#E17908]">
+            <!-- Preenchido via app.js -->
+          </select>
+        </div>
+
+        <div id="deleteColumnWarning" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold flex items-start gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+          <span id="deleteColumnWarningText"></span>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeDeleteColumnModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold">
+            Cancelar
+          </button>
+          <button type="button" id="btnConfirmDeleteColumn" onclick="confirmDeleteColumn()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-black shadow-md transition-all">
+            Excluir Etapa
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
