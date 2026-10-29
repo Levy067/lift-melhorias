@@ -16,6 +16,50 @@ let cardsByYear = {
   2027: []
 };
 
+// Sorting preference per column (listId -> 'newest' | 'oldest')
+let columnSorts = {};
+try {
+  const savedSorts = localStorage.getItem('lift_column_sorts');
+  if (savedSorts) columnSorts = JSON.parse(savedSorts);
+} catch (e) {
+  columnSorts = {};
+}
+
+function setColumnSort(listId, sortOrder) {
+  columnSorts[listId] = sortOrder;
+  try {
+    localStorage.setItem('lift_column_sorts', JSON.stringify(columnSorts));
+  } catch (e) {}
+  renderKanban();
+}
+
+function sortCards(cards, sortOrder) {
+  return [...cards].sort((a, b) => {
+    const timeA = new Date(a.date || 0).getTime() || 0;
+    const timeB = new Date(b.date || 0).getTime() || 0;
+
+    if (timeA !== timeB) {
+      return sortOrder === 'oldest' ? timeA - timeB : timeB - timeA;
+    }
+
+    const weekA = parseInt(a.week) || 0;
+    const weekB = parseInt(b.week) || 0;
+    if (weekA !== weekB) {
+      return sortOrder === 'oldest' ? weekA - weekB : weekB - weekA;
+    }
+
+    const idShortA = parseInt(a.idShort) || 0;
+    const idShortB = parseInt(b.idShort) || 0;
+    if (idShortA !== idShortB) {
+      return sortOrder === 'oldest' ? idShortA - idShortB : idShortB - idShortA;
+    }
+
+    const idA = String(a.id || '');
+    const idB = String(b.id || '');
+    return sortOrder === 'oldest' ? idA.localeCompare(idB) : idB.localeCompare(idA);
+  });
+}
+
 // Initial Setup
 function initApp() {
   // Bind Base64 logo to prevent canvas taint issues during dashboard image export
@@ -231,6 +275,10 @@ function renderKanban() {
       );
     }
 
+    // Sort cards according to column preference (default: newest)
+    const colSort = columnSorts[list.id] || 'newest';
+    colCards = sortCards(colCards, colSort);
+
     // Column Element (Light theme, distinct borders, smooth heights)
     const colEl = document.createElement('div');
     colEl.className = 'kanban-column flex-shrink-0 w-80 bg-[#F1F5F9] border border-slate-200/90 rounded-2xl flex flex-col shadow-sm transition-all';
@@ -257,22 +305,36 @@ function renderKanban() {
       if (cardId) moveCardToList(cardId, list.id);
     });
 
-    // Column Header (White surface)
+    // Column Header (White surface with title, count, add button and sorting selector)
     const isDoneCol = list.isDone;
     const headerHtml = `
-      <div class="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white rounded-t-2xl shrink-0">
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 rounded-full" style="background-color: ${list.color || '#E17908'}"></span>
-          <h3 class="font-black text-sm text-[#033A65] tracking-wide">${escapeHtml(list.name)}</h3>
-          ${isDoneCol ? '<span class="text-[10px] bg-emerald-50 text-emerald-700 font-black px-1.5 py-0.5 rounded border border-emerald-200">Meta 52</span>' : ''}
+      <div class="p-3 border-b border-slate-200 bg-white rounded-t-2xl shrink-0 space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${list.color || '#E17908'}"></span>
+            <h3 class="font-black text-sm text-[#033A65] tracking-wide truncate" title="${escapeHtml(list.name)}">${escapeHtml(list.name)}</h3>
+            ${isDoneCol ? '<span class="text-[10px] bg-emerald-50 text-emerald-700 font-black px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">Meta 52</span>' : ''}
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-xs font-black px-2 py-0.5 rounded-full ${isDoneCol ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700 border border-slate-200'}">
+              ${colCards.length}
+            </span>
+            <button onclick="openCardModal('${list.id}')" title="Adicionar melhoria nesta etapa" class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-[#E17908] hover:text-white text-[#033A65] flex items-center justify-center text-xs font-black transition-all border border-slate-200">
+              +
+            </button>
+          </div>
         </div>
-        <div class="flex items-center gap-1.5">
-          <span class="text-xs font-black px-2 py-0.5 rounded-full ${isDoneCol ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700 border border-slate-200'}">
-            ${colCards.length}
+
+        <!-- Sorting Selector per Stage -->
+        <div class="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-100 text-[11px]">
+          <span class="text-slate-400 font-bold flex items-center gap-1 shrink-0 select-none">
+            <i data-lucide="arrow-down-up" class="w-3 h-3 text-slate-400"></i>
+            <span>Ordenar:</span>
           </span>
-          <button onclick="openCardModal('${list.id}')" title="Adicionar melhoria nesta etapa" class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-[#E17908] hover:text-white text-[#033A65] flex items-center justify-center text-xs font-black transition-all border border-slate-200">
-            +
-          </button>
+          <select onchange="setColumnSort('${list.id}', this.value)" title="Ordenar cartões desta etapa" class="bg-slate-50 hover:bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-[11px] font-bold text-[#033A65] cursor-pointer outline-none transition-all">
+            <option value="newest" ${colSort === 'newest' ? 'selected' : ''}>Mais recente</option>
+            <option value="oldest" ${colSort === 'oldest' ? 'selected' : ''}>Mais antigo</option>
+          </select>
         </div>
       </div>
     `;
@@ -317,6 +379,10 @@ function renderKanban() {
     colEl.appendChild(cardsContainer);
     container.appendChild(colEl);
   });
+
+  if (window.lucide) {
+    lucide.createIcons();
+  }
 }
 
 // Create single Kanban Card Element (Pure White with subtle borders and shadows)
