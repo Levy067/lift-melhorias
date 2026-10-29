@@ -263,18 +263,12 @@
             </div>
           </div>
 
-          <!-- Date info + Presentation Download Button (Exclusively on Dashboard) -->
-          <div class="flex items-center gap-2.5 flex-wrap">
-            <div class="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+          <!-- Date info (Semana atual) pinned to right corner -->
+          <div class="flex items-center sm:ml-auto">
+            <div class="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs">
               <i data-lucide="calendar" class="w-3.5 h-3.5 text-[#E17908]"></i>
               <span id="dashCurrentDate">Semana atual: Semana 44 · 2026</span>
             </div>
-
-            <!-- EXCLUSIVE DOWNLOAD BUTTON IN DASHBOARD (COMPACT SLIDE EXPORT) -->
-            <button onclick="downloadDashboardImage()" id="btnDownloadDashboard" data-html2canvas-ignore="true" class="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-[#E17908] to-[#cf6d05] hover:from-[#cf6d05] hover:to-[#b35e02] text-white text-xs md:text-sm font-black rounded-xl shadow-md shadow-orange-500/25 border border-orange-400/30 transition-all active:scale-95">
-              <i data-lucide="camera" class="w-3.5 h-3.5"></i>
-              <span>Baixar Imagem do Dashboard</span>
-            </button>
           </div>
         </div>
 
