@@ -74,6 +74,12 @@ function initApp() {
   // Calculate current week
   calculateCurrentWeek();
 
+  // Sync year select dropdown button
+  const yearSelect = document.getElementById('yearSelect');
+  if (yearSelect) {
+    yearSelect.value = String(currentYear);
+  }
+
   // Populate column select in card modal
   populateColumnSelect();
 
@@ -109,32 +115,26 @@ function persistData() {
 
 // Switch Year (2026 or 2027)
 function setYear(year) {
-  currentYear = year;
+  currentYear = Number(year);
   calculateCurrentWeek();
 
-  const btn2026 = document.getElementById('btnYear2026');
-  const btn2027 = document.getElementById('btnYear2027');
-
-  if (year === 2026) {
-    btn2026.className = 'year-btn px-4 py-1.5 rounded-lg text-xs md:text-sm font-black transition-all duration-200 bg-[#E17908] text-white shadow-sm';
-    btn2027.className = 'year-btn px-4 py-1.5 rounded-lg text-xs md:text-sm font-extrabold transition-all duration-200 text-slate-600 hover:text-[#033A65] hover:bg-white';
-  } else {
-    btn2026.className = 'year-btn px-4 py-1.5 rounded-lg text-xs md:text-sm font-extrabold transition-all duration-200 text-slate-600 hover:text-[#033A65] hover:bg-white';
-    btn2027.className = 'year-btn px-4 py-1.5 rounded-lg text-xs md:text-sm font-black transition-all duration-200 bg-[#E17908] text-white shadow-sm';
+  const yearSelect = document.getElementById('yearSelect');
+  if (yearSelect && Number(yearSelect.value) !== currentYear) {
+    yearSelect.value = String(currentYear);
   }
 
   const kanbanBadge = document.getElementById('kanbanYearBadge');
   const dashTag = document.getElementById('dashYearTag');
   const dashDate = document.getElementById('dashCurrentDate');
 
-  if (kanbanBadge) kanbanBadge.textContent = `Ano ${year}`;
-  if (dashTag) dashTag.textContent = `${year}`;
+  if (kanbanBadge) kanbanBadge.textContent = `Ano ${currentYear}`;
+  if (dashTag) dashTag.textContent = `${currentYear}`;
   
   if (dashDate) {
-    if (year === 2026) {
+    if (currentYear === 2026) {
       dashDate.textContent = `Semana atual: Semana ${currentWeek} · 2026 (Meta: 52 melhorias)`;
     } else {
-      dashDate.textContent = `Ano 2027 · Meta: 52 melhorias`;
+      dashDate.textContent = `Ano ${currentYear} · Meta: 52 melhorias`;
     }
   }
 
