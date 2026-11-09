@@ -5,7 +5,7 @@
 // App State
 let currentYear = 2026;
 let currentTab = 'funil';
-let currentWeek = 44; // Default for 2026-10-27
+let currentWeek = 1; // Calculado dinamicamente pela semana do ano
 
 // Columns definition
 let lists = [];
@@ -141,12 +141,28 @@ function initApp() {
   }
 }
 
-// Calculate week of the year
+// Calculate ISO week number of the year (1-52)
+function getWeekNumber(date) {
+  const target = date ? new Date(date) : new Date();
+  const d = new Date(Date.UTC(target.getFullYear(), target.getMonth(), target.getDate()));
+  const dayNum = d.getUTCDay() || 7; // Segunda = 1, ..., Domingo = 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return Math.min(52, Math.max(1, weekNo));
+}
+
+// Calculate week of the year dynamically
 function calculateCurrentWeek() {
-  if (currentYear === 2026) {
-    currentWeek = 44;
+  const now = new Date();
+  const realYear = now.getFullYear();
+
+  if (currentYear === realYear) {
+    currentWeek = getWeekNumber(now);
+  } else if (currentYear < realYear) {
+    currentWeek = 52; // Ano já encerrado: 52 semanas completas
   } else {
-    currentWeek = 1;
+    currentWeek = 1; // Ano futuro: semana 1 inicial
   }
 }
 
@@ -499,6 +515,7 @@ function filterCards() {
 // DASHBOARD (TAB 2) - PREVALÊNCIA DO BRANCO
 // ============================================================
 function renderDashboard() {
+  calculateCurrentWeek();
   const cards = cardsByYear[currentYear] || [];
   
   const doneList = lists.find(l => l.isDone) || lists.find(l => l.name.toLowerCase().includes('implementad') || l.name.toLowerCase().includes('conclu'));
@@ -511,6 +528,20 @@ function renderDashboard() {
   const remainingCount = Math.max(0, goalTotal - completedCount);
   const progressPct = ((completedCount / goalTotal) * 100).toFixed(1);
   const expectedForWeek = Math.min(goalTotal, currentWeek);
+
+  const dashTag = document.getElementById('dashYearTag');
+  const dashDate = document.getElementById('dashCurrentDate');
+  if (dashTag) dashTag.textContent = `${currentYear}`;
+  if (dashDate) {
+    const now = new Date();
+    if (currentYear === now.getFullYear()) {
+      dashDate.textContent = `Semana atual: Semana ${currentWeek} · ${currentYear} (Meta: 52 melhorias)`;
+    } else if (currentYear < now.getFullYear()) {
+      dashDate.textContent = `Ano ${currentYear} · Concluído (Meta: 52 melhorias)`;
+    } else {
+      dashDate.textContent = `Ano ${currentYear} · Meta: 52 melhorias`;
+    }
+  }
 
   const elCount = document.getElementById('statCompletedCount');
   const elRemaining = document.getElementById('statRemainingCount');
@@ -1264,7 +1295,7 @@ function processParsedTrelloJSON(data) {
       tag: tag,
       author: author,
       date: c.dateLastActivity || new Date().toISOString(),
-      week: 44
+      week: (c.dateLastActivity ? getWeekNumber(c.dateLastActivity) : currentWeek)
     };
   });
 
@@ -1397,7 +1428,7 @@ async function syncFromFirestore() {
             desc: c.desc || '',
             tag: c.tag || 'Geral',
             author: c.author || 'Pedro Levi',
-            week: c.week || 44,
+            week: c.week || currentWeek,
             date: c.date || new Date().toISOString()
           });
         });
@@ -1418,7 +1449,7 @@ async function syncFromFirestore() {
           desc: data.desc || '',
           tag: data.tag || 'Geral',
           author: data.author || 'Pedro Levi',
-          week: data.week || 44,
+          week: data.week || currentWeek,
           date: data.date || new Date().toISOString()
         };
 
@@ -1461,7 +1492,7 @@ function subscribeFirestoreRealtime() {
               desc: data.desc || '',
               tag: data.tag || 'Geral',
               author: data.author || 'Pedro Levi',
-              week: data.week || 44,
+              week: data.week || currentWeek,
               date: data.date || new Date().toISOString()
             });
             hasChanges = true;
