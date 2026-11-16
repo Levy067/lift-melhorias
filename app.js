@@ -680,21 +680,33 @@ function renderWeekImprovements(completedCards) {
   const countBadge = document.getElementById('weekItemsCount');
   if (!container) return;
 
+  // 1. Verificar melhorias concluídas na semana atual
   let weekCards = completedCards.filter(c => c.week === currentWeek);
-  if (weekCards.length === 0 && completedCards.length > 0) {
-    weekCards = [...completedCards].slice(0, 3);
+  let isPreviousWeek = false;
+
+  // 2. Quando virar a semana (semana atual sem melhorias ainda), buscar melhorias concluídas na última semana (semana anterior)
+  if (weekCards.length === 0 && currentWeek > 1) {
+    const lastWeek = currentWeek - 1;
+    const lastWeekCards = completedCards.filter(c => c.week === lastWeek);
+    if (lastWeekCards.length > 0) {
+      weekCards = lastWeekCards;
+      isPreviousWeek = true;
+    }
   }
 
+  // 3. Atualizar o badge de contagem
   if (countBadge) {
     countBadge.textContent = `${weekCards.length} ${weekCards.length === 1 ? 'item' : 'itens'}`;
+    if (isPreviousWeek) {
+      countBadge.title = `Exibindo melhorias da última semana (Semana ${currentWeek - 1})`;
+    } else {
+      countBadge.title = `Melhorias da Semana ${currentWeek}`;
+    }
   }
 
+  // 4. Se na última semana não foi feito nenhuma melhoria (ou na atual), deixar em branco
   if (weekCards.length === 0) {
-    container.innerHTML = `
-      <div class="p-4 border border-slate-200 rounded-xl bg-slate-50 text-center text-xs text-slate-500">
-        Nenhuma melhoria concluída nesta semana ainda.
-      </div>
-    `;
+    container.innerHTML = '';
     return;
   }
 
@@ -919,6 +931,12 @@ async function downloadDashboardImage() {
 // ============================================================
 // MODAL: CARD EDIT / CREATE
 // ============================================================
+function openCardModalForWeek() {
+  const doneList = lists.find(l => l.isDone) || lists.find(l => l.name.toLowerCase().includes('implementad') || l.name.toLowerCase().includes('conclu'));
+  const doneListId = doneList ? doneList.id : (lists[0] ? lists[0].id : null);
+  openCardModal(doneListId);
+}
+
 function openCardModal(listId = null, cardId = null) {
   const modal = document.getElementById('cardModal');
   const modalTitle = document.getElementById('cardModalTitle');
